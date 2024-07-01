@@ -18,10 +18,11 @@
 """
 
 import hashlib
+from multiprocessing import Pool
 from passlib.context import CryptContext
 import mmap
 from PySide6.QtWidgets import QProgressBar
-from modules.ciphers import md5, sha256, sha512
+from modules.ciphers import md5_b, sha256_b, sha512_b, md5, sha256, sha512
 from modules.brute import brute
 from modules.ciphers import caesar_cipher
 
@@ -50,6 +51,50 @@ def get_file_lines(file: str) -> int:
         return L
 
 
+def get_progress(c: int, t: int) -> int:
+    """
+    c: Current progress
+    t: Total
+    """
+    return c // t * 100
+
+
+def check_password(
+    password: str | bytes, hash_input: str, hash_type: str, action: str = "w"
+) -> str:
+    if hash_type == "MD5":
+        check = md5(password) if action == "b" else md5_b(password)
+    elif hash_type == "SHA256":
+        check = sha256(password) if action == "b" else sha256_b(password)
+    elif hash_type == "SHA512":
+        check = sha512(password) if action == "b" else sha512_b(password)
+    else:
+        check = HASH_CONTEXT.verify(password, hash_input)
+
+    if check == hash_input:
+        return password
+    else:
+        return ""
+
+
+def wordlist_main(hash_input: str, file_path: str, hash_type: str = "other"):
+    with open(file_path, "rb") as file_obj:
+        for password in file_obj:
+            password = password.strip(b"\n")
+            if check_password(password, hash_input, hash_type):
+                results = password
+                break
+        else:
+            results = ""
+    return results
+
+
+def update_progressbar(bar: QProgressBar, t: int) -> None:
+    for c in range(t):
+        p = get_progress(c, t)
+        bar.setValue(p)
+
+
 def BruteForce(
     hash_input: str,
     length: int,
@@ -74,7 +119,6 @@ def BruteForce(
     * hash_type: Type of hash trying to crack.
     """
 
-    results = "Not found"
     for password in brute(
         start_length=start_length,
         length=length,
@@ -83,18 +127,11 @@ def BruteForce(
         numbers=have_numbers,
         ramp=ramp,
     ):
-        if hash_type == "md5":
-            check = md5(password)
-        elif hash_type == "sha256":
-            check = sha256(password)
-        elif hash_type == "sha512":
-            check = sha512(password)
-        else:
-            check = HASH_CONTEXT.verify(password, hash_input)
-
-        if check == hash_input:
+        if check_password(password, hash_input, hash_type, "b"):
             results = password
             break
+    else:
+        results = ""
 
     return results
 
@@ -110,37 +147,20 @@ def WordList(
     * file_path: Path to the word-list.
     * hash_type: Type of hash trying to crack.
     """
-    TLines = get_file_lines(file_path)
-    Line = 0
-    p = 0
-    bar.setValue(p)
+    Lines = get_file_lines(file_path)
+    bar.setValue(0)
     if not bar.isVisible():
         bar.setVisible(True)
 
-    with open(file_path, "r", encoding="UTF-8") as file_obj:
-        for password in file_obj:
-            Line += 1
-            p = Line // TLines * 100
-            bar.setValue(p)
-            password = password.strip()
-            if hash_type == "MD5":
-                check = md5(password)
-            elif hash_type == "SHA256":
-                check = sha256(password)
-            elif hash_type == "SHA512":
-                check = sha512(password)
-            else:
-                check = HASH_CONTEXT.verify(password, hash_input)
+    pool = Pool()
 
-            if check == hash_input:
-                results = password
-                bar.setValue(100)
-                break
-        else:
-            results = ""
+    pool.apply_async(update_progressbar, (bar, Lines))
+    results = pool.apply_async(wordlist_main, (hash_input, file_path, hash_type))
 
-    return results
-
+    pool.close()
+    pool.join()
+    results = results.get()
+    return results.decode()
 
 def caesar_brute(input_string: str, alphabet: str) -> dict[str, str]:
     """

@@ -334,9 +334,12 @@ def vig_cipher(text: str, key: str, alphabet: str, mode: str = "e" or "d") -> st
 
 
 # Hashes
-# TODO: add a way to include salt with the text
 def md5(text: str) -> str:
     return hashlib.md5(text.encode()).hexdigest()
+
+
+def md5_b(text: bytes) -> str:
+    return hashlib.md5(text).hexdigest()
 
 
 def md5_crypt(text: str) -> str:
@@ -347,12 +350,20 @@ def sha256(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
+def sha256_b(text: bytes) -> str:
+    return hashlib.sha256(text).hexdigest()
+
+
 def sha256_crypt(text: str) -> str:
     return passlib.hash.sha256_crypt.hash(text)
 
 
 def sha512(text: str) -> str:
     return hashlib.sha512(text.encode()).hexdigest()
+
+
+def sha512_b(text: bytes) -> str:
+    return hashlib.sha512(text).hexdigest()
 
 
 def sha512_crypt(text: str) -> str:
