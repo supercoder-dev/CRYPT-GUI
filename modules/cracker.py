@@ -152,6 +152,8 @@ def WordList(
     if not bar.isVisible():
         bar.setVisible(True)
 
+    # TODO: Make the progress bar update
+    # Might be useful: https://stackoverflow.com/questions/58887540/progressbar-in-pyqt5-for-multiprocessing#59866351
     pool = Pool()
 
     pool.apply_async(update_progressbar, (bar, Lines))
